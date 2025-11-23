@@ -1,0 +1,34 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(owner, "Собственник/Жилец", "Пользуется мобильным приложением PropDevelopment")
+Person(ops, "Оператор УК", "Сотрудник управляющей компании")
+
+System_Boundary(prop, "Платформа PropDevelopment") {
+  System(mobile, "Мобильное приложение собственника", "iOS/Android")
+  System(core, "tenant-core-app", "Сервис ЖКУ и кабинета собственника")
+  System(crm, "CRM", "Данные собственников/клиентов")
+  System(auth, "IdP / SSO", "OIDC (Keycloak)")
+  System(gw, "API Gateway", "Шлюз внутренних/внешних API")
+  System(adapter, "SmartHome-Adapter", "Интеграционный сервис для партнёрской платформы")
+  SystemQueue(bus, "Event Bus", "Kafka/RabbitMQ — события доступа, аудита")
+  System(audit, "Audit/SIEM", "Журнал безопасности, ретенция, корреляция")
+}
+
+System_Ext(pay, "Платёжный провайдер", "Оплата услуг")
+System_Ext(partner, "Партнёрская платформа SmartHome", "Домофон (face ID), шлагбаум (ANPR)")
+
+Rel(owner, mobile, "Оплата, уведомления, управление доступом")
+Rel(ops, core, "Работа с обращениями, списки доступа")
+Rel(mobile, gw, "API мобильного бэкенда", "TLS 1.2+ OIDC")
+Rel(gw, core, "Сервисы ЖКУ", "mTLS/JWT")
+Rel(core, crm, "Карточка собственника, права", "JDBC/REST")
+Rel(core, adapter, "Создание/отзыв прав доступа на площадки", "REST gRPC (внутр.)")
+Rel(adapter, partner, "Provisioning, команды открыть/закрыть", "HTTPS mTLS + request signing")
+Rel(partner, adapter, "Callbacks/Webhooks: распознано/доступ разрешён/отказ", "HTTPS mTLS + idempotency key")
+Rel(adapter, bus, "Пишет события доступа")
+Rel(bus, audit, "Стрим событий для SIEM")
+Rel(core, pay, "Платёжные операции", "PCI DSS-сегмент")
+Rel(auth, gw, "OIDC/OAuth2, JWKs")
+Rel(mobile, auth, "OIDC (PKCE)")
+@enduml
